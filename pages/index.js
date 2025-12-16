@@ -65,27 +65,33 @@ export default function Home() {
     }
   }
 
+  // 🔢 controla quantos posts aparecem no widget
+  // troca 9 por 12 se quiser 4 linhas, por exemplo
+  const postsToShow = posts.slice(0, 9);
+
   return (
     <div
       style={{
         minHeight: "100vh",
         backgroundColor: "#000",
         color: "#fff",
-        padding: "24px",
-        fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+        padding: "16px",
+        fontFamily:
+          "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
       }}
     >
+      {/* topo */}
       <header
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: "24px",
+          marginBottom: "12px",
         }}
       >
         <h1
           style={{
-            fontSize: "24px",
+            fontSize: "18px",
             fontWeight: 600,
           }}
         >
@@ -96,13 +102,13 @@ export default function Home() {
           onClick={fetchPosts}
           disabled={loading}
           style={{
-            padding: "8px 18px",
+            padding: "6px 14px",
             borderRadius: "999px",
             border: "1px solid #444",
             background: loading ? "#222" : "#111",
             color: "#fff",
             cursor: loading ? "default" : "pointer",
-            fontSize: "14px",
+            fontSize: "12px",
             transition: "background 0.2s, transform 0.1s",
           }}
         >
@@ -113,147 +119,162 @@ export default function Home() {
       {error && (
         <p
           style={{
-            marginBottom: "16px",
+            marginBottom: "10px",
             color: "#ff8080",
-            fontSize: "14px",
+            fontSize: "12px",
           }}
         >
           {error}
         </p>
       )}
 
-      {posts.length === 0 && !loading && !error && (
-        <p style={{ opacity: 0.8 }}>nenhum post encontrado 😶</p>
+      {postsToShow.length === 0 && !loading && !error && (
+        <p style={{ opacity: 0.8, fontSize: "12px" }}>
+          nenhum post encontrado 😶
+        </p>
       )}
 
+      {/* 🔳 grade tipo feed */}
       <div
         style={{
-          display: "flex",
-          gap: "24px",
-          flexWrap: "nowrap",
-          overflowX: "auto",
-          paddingBottom: "16px",
+          display: "grid",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: "8px",
+          maxWidth: "520px", // controla a largura dentro do embed
         }}
       >
-        {posts.map((post) => (
-          <div
+        {postsToShow.map((post) => (
+          <article
             key={post.id}
             style={{
-              flex: "0 0 320px",
-              height: "480px",
               background:
-                "radial-gradient(circle at top, #222 0, #050505 40%, #000 80%)",
-              borderRadius: "24px",
+                "radial-gradient(circle at top, #181818 0, #050505 40%, #000 80%)",
+              borderRadius: "16px",
               overflow: "hidden",
               border: "1px solid #222",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
               position: "relative",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-              transition: "transform 0.2s ease, box-shadow 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-4px)";
-              e.currentTarget.style.boxShadow =
-                "0 18px 40px rgba(0,0,0,0.8)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow =
-                "0 10px 30px rgba(0,0,0,0.5)";
+              boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
             }}
           >
-            {post.mediaUrl ? (
-              post.mediaType === "video" ? (
-                <>
-                  <video
-                    ref={(el) => {
-                      if (el) videoRefs.current[post.id] = el;
-                    }}
-                    src={post.mediaUrl}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      display: "block",
-                    }}
-                    muted
-                    playsInline
-                    controls={false}
-                  />
-
-                  {/* Botão play/pause */}
-                  <button
-                    type="button"
-                    onClick={() => toggleVideo(post.id)}
-                    style={{
-                      position: "absolute",
-                      left: "50%",
-                      top: "50%",
-                      transform: "translate(-50%, -50%)",
-                      width: "60px",
-                      height: "60px",
-                      borderRadius: "999px",
-                      border: "none",
-                      background:
-                        playingId === post.id
-                          ? "rgba(0,0,0,0.4)"
-                          : "rgba(0,0,0,0.65)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor: "pointer",
-                      backdropFilter: "blur(4px)",
-                      boxShadow: "0 4px 18px rgba(0,0,0,0.7)",
-                    }}
-                  >
-                    <span
+            <div
+              style={{
+                position: "relative",
+                width: "100%",
+                aspectRatio: "4 / 5", // proporção IG
+                overflow: "hidden",
+              }}
+            >
+              {post.mediaUrl ? (
+                post.mediaType === "video" ? (
+                  <>
+                    <video
+                      ref={(el) => {
+                        if (el) videoRefs.current[post.id] = el;
+                      }}
+                      src={post.mediaUrl}
                       style={{
-                        fontSize: "26px",
-                        lineHeight: 1,
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                      muted
+                      playsInline
+                      controls={false}
+                    />
+
+                    {/* play/pause central */}
+                    <button
+                      type="button"
+                      onClick={() => toggleVideo(post.id)}
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: "none",
+                        background:
+                          playingId === post.id
+                            ? "rgba(0,0,0,0.25)"
+                            : "linear-gradient(0deg, rgba(0,0,0,0.55), rgba(0,0,0,0.05))",
+                        color: "#fff",
+                        cursor: "pointer",
+                        fontSize: "22px",
                       }}
                     >
                       {playingId === post.id ? "❚❚" : "▶"}
-                    </span>
-                  </button>
-                </>
-              ) : (
-                <img
-                  src={post.mediaUrl}
-                  alt={post.title || "post"}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    display: "block",
-                  }}
-                />
-              )
-            ) : (
-              <span style={{ opacity: 0.5 }}>sem mídia</span>
-            )}
+                    </button>
 
-            {/* badge de formato (feed / carrossel / reels) */}
-            {post.format && (
-              <span
-                style={{
-                  position: "absolute",
-                  top: "12px",
-                  right: "12px",
-                  fontSize: "11px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  padding: "4px 10px",
-                  borderRadius: "999px",
-                  background: "rgba(0, 0, 0, 0.65)",
-                  border: "1px solid rgba(255, 255, 255, 0.25)",
-                }}
-              >
-                {post.format}
-              </span>
-            )}
-          </div>
+                    {/* badge REELS */}
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: "6px",
+                        right: "6px",
+                        fontSize: "9px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        padding: "3px 7px",
+                        borderRadius: "999px",
+                        background: "rgba(0,0,0,0.7)",
+                        border: "1px solid rgba(255,255,255,0.15)",
+                      }}
+                    >
+                      reels
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <img
+                      src={post.mediaUrl}
+                      alt={post.title || "post"}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+
+                    {/* badge feed/carrossel */}
+                    {post.format && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: "6px",
+                          right: "6px",
+                          fontSize: "9px",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.06em",
+                          padding: "3px 7px",
+                          borderRadius: "999px",
+                          background: "rgba(0,0,0,0.7)",
+                          border: "1px solid rgba(255,255,255,0.15)",
+                        }}
+                      >
+                        {post.format}
+                      </span>
+                    )}
+                  </>
+                )
+              ) : (
+                <span
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "11px",
+                    opacity: 0.6,
+                  }}
+                >
+                  sem mídia
+                </span>
+              )}
+            </div>
+          </article>
         ))}
       </div>
     </div>
