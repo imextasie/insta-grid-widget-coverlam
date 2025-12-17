@@ -1,72 +1,40 @@
 // pages/api/posts.js
-import { Client } from "@notionhq/client";
 
-// Cliente do Notion
-const notion = new Client({
-  auth: process.env.NOTION_SECRET,
-});
+const NOTION_SECRET = process.env.NOTION_SECRET;
+const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID;
 
 /**
- * Busca o data_source (fonte de dados) a partir do ID do database
- * (o database agora é só o "container" no modelo novo da API).
- */
-async function getDataSourceId() {
-  const dbId = process.env.NOTION_DATABASE_ID?.trim();
-
-  if (!dbId) {
-    throw new Error(
-      "A variável NOTION_DATABASE_ID não está definida no .env.local"
-    );
-  }
-
-  const database = await notion.databases.retrieve({
-    database_id: dbId,
-  });
-
-  const dataSources = database.data_sources || [];
-
-  if (!dataSources.length) {
-    throw new Error(
-      `O database ${dbId} não tem nenhum data source. Verifique no Notion.`
-    );
-  }
-
-  const first = dataSources[0];
-
-  console.log("Data source escolhido:", {
-    id: first.id,
-    name: first.name,
-  });
-
-  return first.id;
-}
-
-/**
- * Mapeia uma página do Notion para o formato de "post"
+ * Converte uma página do Notion no formato de "post" usado pelo widget
  */
 function mapPageToPost(page) {
   const props = page.properties || {};
 
-  const titleProp = props["Título do Post"];
-  const imageProp = props["Imagem"];
-  const dateProp = props["Data de Postagem"];
-  const platformProp = props["Plataforma"];
-  const formatProp = props["Formato"];
+  // título (coluna "Name")
+  const nameProp = props["Name"];
 
-  // título: tenta Título do Post, depois Name, depois fallback
-  const titleRaw =
-    titleProp?.title?.[0]?.plain_text ??
-    props.Name?.title?.[0]?.plain_text ??
-    "sem título";
+  // coluna de arquivos – tentamos vários nomes possíveis
+  const midiaProp =
+    props["imagens e vídeos"] || // com acento (mais provável)
+    props["imagens e videos"] || // sem acento, se você mudar depois
+    props["Imagem"] ||
+    props["imagens"] ||
+    props["imagens e vídeo"];
 
-  const title = titleRaw.trim();
+  // coluna de formato (feed / carrossel / video etc)
+  const formatoProp = props["formato"];
 
-  // mídia (imagem ou vídeo)
+  // checkbox "mostrar no widget"
+  const mostrarProp = props["mostrar no widget"];
+
+  const title =
+    nameProp?.title?.[0]?.plain_text?.trim() || "sem título";
+
+  // mídia
   let mediaUrl = null;
-  let mediaType = "image"; // "image" | "video"
+  let mediaType = "image";
 
-  if (imageProp?.files?.length) {
-    const file = imageProp.files[0];
+  if (midiaProp?.files?.length) {
+    const file = midiaProp.files[0];
 
     if (file.type === "file") {
       mediaUrl = file.file.url;
@@ -74,25 +42,22 @@ function mapPageToPost(page) {
       mediaUrl = file.external.url;
     }
 
-    // Se a URL terminar com extensão de vídeo, marcamos como vídeo
-    if (
-      mediaUrl &&
-      /\.(mp4|mov|webm|m4v)$/i.test(mediaUrl.split("?")[0] || mediaUrl)
-    ) {
+    const cleanUrl = (mediaUrl || "").split("?")[0];
+    if (/\.(mp4|mov|webm|m4v)$/i.test(cleanUrl)) {
       mediaType = "video";
     }
   }
 
-  const date = dateProp?.date?.start || null;
+  const format = formatoProp?.select?.name || null;
+  const mostrarNoWidget = !!mostrarProp?.checkbox;
 
   return {
     id: page.id,
     title,
     mediaUrl,
     mediaType,
-    date,
-    platform: platformProp?.select?.name || null,
-    format: formatProp?.select?.name || null,
+    format,
+    mostrarNoWidget,
   };
 }
 
@@ -101,45 +66,67 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Método não permitido" });
   }
 
-  try {
-    // 1) Descobre o data_source a partir do database_id do .env
-    const dataSourceId = await getDataSourceId();
-
-    // 2) Faz a query usando a API nova: dataSources.query
-    const response = await notion.dataSources.query({
-      data_source_id: dataSourceId,
-      sorts: [
-        {
-          timestamp: "created_time",
-          direction: "descending",
-        },
-      ],
-      page_size: 100,
+  if (!NOTION_SECRET || !NOTION_DATABASE_ID) {
+    return res.status(500).json({
+      error: "Configuração faltando",
+      detail:
+        "NOTION_SECRET ou NOTION_DATABASE_ID não estão definidos no .env.local",
     });
+  }
 
-    console.log(`Total de posts retornados: ${response.results.length}`);
+  try {
+    // 1) Busca as páginas do banco, SEM filtro no Notion
+    const notionRes = await fetch(
+      `https://api.notion.com/v1/databases/${NOTION_DATABASE_ID}/query`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${NOTION_SECRET}`,
+          "Notion-Version": "2022-06-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sorts: [
+            {
+              timestamp: "created_time",
+              direction: "descending",
+            },
+          ],
+          page_size: 100,
+        }),
+      }
+    );
 
-    const allPosts = response.results.map(mapPageToPost);
-
-    // 3) Filtra só o que você quer no widget
-    const posts = allPosts
-      .filter((post) => post.mediaUrl) // só posts com mídia
-      .filter((post) => {
-        const platform = post.platform?.toLowerCase();
-        const format = post.format?.toLowerCase();
-        // incluir feed + carrossel (ajusta como quiser)
-        return (
-          platform === "instagram" &&
-          (format === "feed" || format === "carrossel" || format === "reels")
-        );
+    if (!notionRes.ok) {
+      const errData = await notionRes.json().catch(() => null);
+      console.error("Erro bruto da API Notion:", errData || notionRes.status);
+      return res.status(500).json({
+        error: "Erro ao consultar Notion",
+        detail: errData || { status: notionRes.status },
       });
+    }
+
+    const data = await notionRes.json();
+    const results = data.results || [];
+
+    console.log("Total de páginas retornadas pelo Notion:", results.length);
+
+    const allPosts = results.map(mapPageToPost);
+
+    const marcados = allPosts.filter((p) => p.mostrarNoWidget);
+    console.log("Com 'mostrar no widget' marcado:", marcados.length);
+
+    // 2) Agora filtramos só o que tem mídia E está marcado pro widget
+    const posts = marcados.filter((p) => p.mediaUrl);
+
+    console.log("Total de posts enviados pro widget:", posts.length);
 
     return res.status(200).json({ posts });
   } catch (error) {
-    console.error("Erro em API /api/posts:", error.body || error);
+    console.error("Erro em /api/posts:", error);
     return res.status(500).json({
-      error: "Erro ao carregar posts",
-      detail: error.body || error.message,
+      error: "Erro inesperado ao carregar posts",
+      detail: error.message || String(error),
     });
   }
 }
