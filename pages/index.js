@@ -65,50 +65,47 @@ export default function Home() {
     }
   }
 
-  // 🔢 controla quantos posts aparecem no widget
-  // troca 9 por 12 se quiser 4 linhas, por exemplo
-  const postsToShow = posts.slice(0, 9);
-
   return (
     <div
       style={{
         minHeight: "100vh",
         backgroundColor: "#000",
         color: "#fff",
-        padding: "16px",
-        fontFamily:
-          "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+        padding: "24px",
+        fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+        position: "relative", // pra posicionar o footer dentro do widget
+        boxSizing: "border-box",
       }}
     >
-      {/* topo */}
+      {/* HEADER */}
       <header
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: "12px",
+          marginBottom: "24px",
         }}
       >
         <h1
           style={{
-            fontSize: "18px",
+            fontSize: "24px",
             fontWeight: 600,
           }}
         >
-          widget instagram s2h
+          Insta Widget Coverlam
         </h1>
 
         <button
           onClick={fetchPosts}
           disabled={loading}
           style={{
-            padding: "6px 14px",
+            padding: "8px 18px",
             borderRadius: "999px",
             border: "1px solid #444",
             background: loading ? "#222" : "#111",
             color: "#fff",
             cursor: loading ? "default" : "pointer",
-            fontSize: "12px",
+            fontSize: "14px",
             transition: "background 0.2s, transform 0.1s",
           }}
         >
@@ -119,49 +116,56 @@ export default function Home() {
       {error && (
         <p
           style={{
-            marginBottom: "10px",
+            marginBottom: "16px",
             color: "#ff8080",
-            fontSize: "12px",
+            fontSize: "14px",
           }}
         >
           {error}
         </p>
       )}
 
-      {postsToShow.length === 0 && !loading && !error && (
-        <p style={{ opacity: 0.8, fontSize: "12px" }}>
-          nenhum post encontrado 😶
-        </p>
+      {posts.length === 0 && !loading && !error && (
+        <p style={{ opacity: 0.8 }}>nenhum post encontrado 😶</p>
       )}
 
-      {/* 🔳 grade tipo feed */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: "8px",
-          maxWidth: "520px", // controla a largura dentro do embed
-        }}
-      >
-        {postsToShow.map((post) => (
-          <article
-            key={post.id}
-            style={{
-              background:
-                "radial-gradient(circle at top, #181818 0, #050505 40%, #000 80%)",
-              borderRadius: "16px",
-              overflow: "hidden",
-              border: "1px solid #222",
-              position: "relative",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
-            }}
-          >
+      {/* GRID DE POSTS */}
+      {posts.length > 0 && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "24px",
+            alignItems: "flex-start",
+          }}
+        >
+          {posts.map((post) => (
             <div
+              key={post.id}
               style={{
                 position: "relative",
                 width: "100%",
-                aspectRatio: "4 / 5", // proporção IG
+                aspectRatio: "3 / 4", // mantém o formato “card”
+                background:
+                  "radial-gradient(circle at top, #222 0, #050505 40%, #000 80%)",
+                borderRadius: "24px",
                 overflow: "hidden",
+                border: "1px solid #222",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+                transition: "transform 0.2s ease, box-shadow 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow =
+                  "0 18px 40px rgba(0,0,0,0.8)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow =
+                  "0 10px 30px rgba(0,0,0,0.5)";
               }}
             >
               {post.mediaUrl ? (
@@ -183,99 +187,97 @@ export default function Home() {
                       controls={false}
                     />
 
-                    {/* play/pause central */}
+                    {/* Botão play/pause */}
                     <button
                       type="button"
                       onClick={() => toggleVideo(post.id)}
                       style={{
                         position: "absolute",
-                        inset: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
+                        left: "50%",
+                        top: "50%",
+                        transform: "translate(-50%, -50%)",
+                        width: "60px",
+                        height: "60px",
+                        borderRadius: "999px",
                         border: "none",
                         background:
                           playingId === post.id
-                            ? "rgba(0,0,0,0.25)"
-                            : "linear-gradient(0deg, rgba(0,0,0,0.55), rgba(0,0,0,0.05))",
-                        color: "#fff",
+                            ? "rgba(0,0,0,0.4)"
+                            : "rgba(0,0,0,0.65)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                         cursor: "pointer",
-                        fontSize: "22px",
+                        backdropFilter: "blur(4px)",
+                        boxShadow: "0 4px 18px rgba(0,0,0,0.7)",
                       }}
                     >
-                      {playingId === post.id ? "❚❚" : "▶"}
-                    </button>
-
-                    {/* badge REELS */}
-                    <span
-                      style={{
-                        position: "absolute",
-                        top: "6px",
-                        right: "6px",
-                        fontSize: "9px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.06em",
-                        padding: "3px 7px",
-                        borderRadius: "999px",
-                        background: "rgba(0,0,0,0.7)",
-                        border: "1px solid rgba(255,255,255,0.15)",
-                      }}
-                    >
-                      reels
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <img
-                      src={post.mediaUrl}
-                      alt={post.title || "post"}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        display: "block",
-                      }}
-                    />
-
-                    {/* badge feed/carrossel */}
-                    {post.format && (
                       <span
                         style={{
-                          position: "absolute",
-                          top: "6px",
-                          right: "6px",
-                          fontSize: "9px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.06em",
-                          padding: "3px 7px",
-                          borderRadius: "999px",
-                          background: "rgba(0,0,0,0.7)",
-                          border: "1px solid rgba(255,255,255,0.15)",
+                          fontSize: "26px",
+                          lineHeight: 1,
                         }}
                       >
-                        {post.format}
+                        {playingId === post.id ? "❚❚" : "▶"}
                       </span>
-                    )}
+                    </button>
                   </>
+                ) : (
+                  <img
+                    src={post.mediaUrl}
+                    alt={post.title || "post"}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
                 )
               ) : (
+                <span style={{ opacity: 0.5 }}>sem mídia</span>
+              )}
+
+              {/* badge de formato (feed / carrossel / reels) */}
+              {post.format && (
                 <span
                   style={{
                     position: "absolute",
-                    inset: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    top: "12px",
+                    right: "12px",
                     fontSize: "11px",
-                    opacity: 0.6,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    padding: "4px 10px",
+                    borderRadius: "999px",
+                    background: "rgba(0, 0, 0, 0.65)",
+                    border: "1px solid rgba(255, 255, 255, 0.25)",
                   }}
                 >
-                  sem mídia
+                  {post.format}
                 </span>
               )}
             </div>
-          </article>
-        ))}
+          ))}
+        </div>
+      )}
+
+      {/* FOOTER CENTRALIZADO */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 16,
+          left: "50%",
+          transform: "translateX(-50%)",
+          fontSize: "11px",
+          opacity: 0.6,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          whiteSpace: "nowrap",
+        }}
+      >
+        powered by{" "}
+        <span style={{ fontWeight: 600, marginLeft: 4 }}>studio2high</span>
       </div>
     </div>
   );
