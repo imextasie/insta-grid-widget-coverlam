@@ -3,282 +3,74 @@ import { useEffect, useState, useRef } from "react";
 
 export default function Home() {
   const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [playingId, setPlayingId] = useState(null); // qual vídeo está tocando
-  const videoRefs = useRef({}); // refs dos <video> por id
+  const [client, setClient] = useState("");
+  const [playingId, setPlayingId] = useState(null);
+  const videoRefs = useRef({});
 
-  async function fetchPosts() {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const c = params.get("client") || "coverlam";
+    setClient(c.toLowerCase());
+    loadPosts(c.toLowerCase());
+  }, []);
+
+  async function loadPosts(targetClient) {
     try {
       setLoading(true);
-      setError("");
-
-      const res = await fetch("/api/posts");
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.detail || "Erro ao buscar posts");
-      }
-
+      const res = await fetch(`/api/posts?client=${targetClient}`);
       const data = await res.json();
-      setPosts(data.posts || []);
-      setPlayingId(null);
+      if (!res.ok) throw new Error(data.detail);
+      setPosts(data.posts);
     } catch (err) {
-      console.error("Erro ao carregar posts:", err);
-      setError(err.message || "Erro inesperado ao carregar posts");
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
-
-  // pausa todos os vídeos, opcionalmente exceto um
-  function pauseAllVideos(exceptId = null) {
-    Object.entries(videoRefs.current).forEach(([id, vid]) => {
-      if (!vid) return;
-      if (exceptId && id === exceptId) return;
-      if (!vid.paused) vid.pause();
-    });
-  }
-
-  async function toggleVideo(postId) {
-    const vid = videoRefs.current[postId];
-    if (!vid) return;
-
-    if (!vid.paused) {
-      // já está tocando -> pausa
+  const toggleVideo = (id) => {
+    const vid = videoRefs.current[id];
+    if (playingId === id) {
       vid.pause();
       setPlayingId(null);
-      return;
+    } else {
+      Object.values(videoRefs.current).forEach(v => v?.pause());
+      vid.play();
+      setPlayingId(id);
     }
+  };
 
-    // pausa todos os outros
-    pauseAllVideos(postId);
-
-    try {
-      await vid.play();
-      setPlayingId(postId);
-    } catch (err) {
-      console.error("Erro ao dar play no vídeo:", err);
-    }
-  }
+  if (loading) return <div style={{background: "#000", color: "#fff", height: "100vh", padding: "20px"}}>Carregando...</div>;
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#000",
-        color: "#fff",
-        padding: "24px",
-        fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
-        position: "relative", // pra posicionar o footer dentro do widget
-        boxSizing: "border-box",
-      }}
-    >
-      {/* HEADER */}
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "24px",
-        }}
-      >
-        <h1
-          style={{
-            fontSize: "24px",
-            fontWeight: 600,
-          }}
-        >
-          Insta Widget Coverlam
-        </h1>
-
-        <button
-          onClick={fetchPosts}
-          disabled={loading}
-          style={{
-            padding: "8px 18px",
-            borderRadius: "999px",
-            border: "1px solid #444",
-            background: loading ? "#222" : "#111",
-            color: "#fff",
-            cursor: loading ? "default" : "pointer",
-            fontSize: "14px",
-            transition: "background 0.2s, transform 0.1s",
-          }}
-        >
-          {loading ? "carregando..." : "refresh"}
-        </button>
+    <div style={{ background: "#000", color: "#fff", minHeight: "100vh", padding: "24px", fontFamily: "sans-serif" }}>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", maxWidth: "1200px", margin: "0 auto 30px" }}>
+        <h1 style={{ fontSize: "22px" }}>Insta Widget {client}</h1>
+        <button onClick={() => loadPosts(client)} style={{ background: "#111", color: "#fff", border: "1px solid #333", padding: "8px 15px", borderRadius: "20px", cursor: "pointer" }}>refresh</button>
       </header>
 
-      {error && (
-        <p
-          style={{
-            marginBottom: "16px",
-            color: "#ff8080",
-            fontSize: "14px",
-          }}
-        >
-          {error}
-        </p>
-      )}
-
-      {posts.length === 0 && !loading && !error && (
-        <p style={{ opacity: 0.8 }}>nenhum post encontrado 😶</p>
-      )}
-
-      {/* GRID DE POSTS */}
-      {posts.length > 0 && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "24px",
-            alignItems: "flex-start",
-          }}
-        >
-          {posts.map((post) => (
-            <div
-              key={post.id}
-              style={{
-                position: "relative",
-                width: "100%",
-                aspectRatio: "3 / 4", // mantém o formato “card”
-                background:
-                  "radial-gradient(circle at top, #222 0, #050505 40%, #000 80%)",
-                borderRadius: "24px",
-                overflow: "hidden",
-                border: "1px solid #222",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-                transition: "transform 0.2s ease, box-shadow 0.2s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-4px)";
-                e.currentTarget.style.boxShadow =
-                  "0 18px 40px rgba(0,0,0,0.8)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow =
-                  "0 10px 30px rgba(0,0,0,0.5)";
-              }}
-            >
-              {post.mediaUrl ? (
-                post.mediaType === "video" ? (
-                  <>
-                    <video
-                      ref={(el) => {
-                        if (el) videoRefs.current[post.id] = el;
-                      }}
-                      src={post.mediaUrl}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        display: "block",
-                      }}
-                      muted
-                      playsInline
-                      controls={false}
-                    />
-
-                    {/* Botão play/pause */}
-                    <button
-                      type="button"
-                      onClick={() => toggleVideo(post.id)}
-                      style={{
-                        position: "absolute",
-                        left: "50%",
-                        top: "50%",
-                        transform: "translate(-50%, -50%)",
-                        width: "60px",
-                        height: "60px",
-                        borderRadius: "999px",
-                        border: "none",
-                        background:
-                          playingId === post.id
-                            ? "rgba(0,0,0,0.4)"
-                            : "rgba(0,0,0,0.65)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        backdropFilter: "blur(4px)",
-                        boxShadow: "0 4px 18px rgba(0,0,0,0.7)",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: "26px",
-                          lineHeight: 1,
-                        }}
-                      >
-                        {playingId === post.id ? "❚❚" : "▶"}
-                      </span>
-                    </button>
-                  </>
-                ) : (
-                  <img
-                    src={post.mediaUrl}
-                    alt={post.title || "post"}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      display: "block",
-                    }}
-                  />
-                )
-              ) : (
-                <span style={{ opacity: 0.5 }}>sem mídia</span>
-              )}
-
-              {/* badge de formato (feed / carrossel / reels) */}
-              {post.format && (
-                <span
-                  style={{
-                    position: "absolute",
-                    top: "12px",
-                    right: "12px",
-                    fontSize: "11px",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    padding: "4px 10px",
-                    borderRadius: "999px",
-                    background: "rgba(0, 0, 0, 0.65)",
-                    border: "1px solid rgba(255, 255, 255, 0.25)",
-                  }}
-                >
-                  {post.format}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* FOOTER CENTRALIZADO */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 16,
-          left: "50%",
-          transform: "translateX(-50%)",
-          fontSize: "11px",
-          opacity: 0.6,
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
-          whiteSpace: "nowrap",
-        }}
-      >
-        powered by{" "}
-        <span style={{ fontWeight: 600, marginLeft: 4 }}>studio2high</span>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+        {posts.map((post) => (
+          <div key={post.id} style={{ position: "relative", aspectRatio: "1/1", borderRadius: "20px", overflow: "hidden", border: "1px solid #222" }}>
+            {post.mediaType === "video" ? (
+              <>
+                <video ref={el => videoRefs.current[post.id] = el} src={post.mediaUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted playsInline loop />
+                <button onClick={() => toggleVideo(post.id)} style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "rgba(0,0,0,0.6)", color: "#fff", border: "none", width: "50px", height: "50px", borderRadius: "50%", cursor: "pointer" }}>
+                  {playingId === post.id ? "❚❚" : "▶"}
+                </button>
+              </>
+            ) : (
+              <img src={post.mediaUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            )}
+            {post.format && (
+              <span style={{ position: "absolute", top: "12px", right: "12px", background: "rgba(0,0,0,0.7)", padding: "4px 10px", borderRadius: "10px", fontSize: "10px" }}>{post.format}</span>
+            )}
+          </div>
+        ))}
       </div>
+      <footer style={{ textAlign: "center", marginTop: "50px", opacity: 0.5, fontSize: "10px" }}>POWERED BY STUDIO2HIGH</footer>
     </div>
   );
 }
